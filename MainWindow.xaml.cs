@@ -34,14 +34,14 @@ namespace DeepLocal
         private ModelItem? _current;
         private bool _ollamaUp;
 
-        // Lingue
+        private readonly long? _vramBytes = GpuInfo.DedicatedVramBytes();
+
         private readonly List<LangOption> _sourceOptions;
         private readonly List<LangOption> _targetOptions;
         private Language? _detected;
         private string? _detectedFor;
         private Language _lastExplicitSource = Languages.ByCode("en")!;
 
-        // Traduzione in corso e digitazione
         private CancellationTokenSource? _translateCts;
         private readonly DispatcherTimer _debounce = new() { Interval = TimeSpan.FromMilliseconds(900) };
         private readonly DispatcherTimer _copiedReset = new() { Interval = TimeSpan.FromMilliseconds(1600) };
@@ -52,7 +52,6 @@ namespace DeepLocal
         private enum ErrorKind { None, StartOllama, Retry, OpenModels }
         private ErrorKind _errorKind = ErrorKind.None;
 
-        // Hotkey globale Alt+T
         private const int HOTKEY_ID = 9000;
         private const uint MOD_ALT = 0x0001;
         private const uint MOD_NOREPEAT = 0x4000;
@@ -120,10 +119,6 @@ namespace DeepLocal
             };
         }
 
-        // ============================================================
-        //  Finestra, tray e hotkey
-        // ============================================================
-
         protected override void OnSourceInitialized(EventArgs e)
         {
             base.OnSourceInitialized(e);
@@ -166,8 +161,6 @@ namespace DeepLocal
             base.OnStateChanged(e);
             if (WindowState == WindowState.Minimized)
             {
-                // Riduci a icona = nella tray. Si ripristina lo stato normale subito,
-                // così Alt+T o la tray la riaprono visibile e non ridotta.
                 Hide();
                 WindowState = WindowState.Normal;
                 App.Instance?.UpdateMenuItems();
@@ -177,25 +170,16 @@ namespace DeepLocal
         protected override void OnClosing(CancelEventArgs e)
         {
             base.OnClosing(e);
-            if (!App.AllowClose)
-            {
-                // La X manda nella tray; si esce dal menu della tray
-                e.Cancel = true;
-                ModelPopup.IsOpen = false;
-                SettingsPopup.IsOpen = false;
-                Hide();
-                App.Instance?.UpdateMenuItems();
-            }
+            ModelPopup.IsOpen = false;
+            SettingsPopup.IsOpen = false;
         }
 
-        /// <summary>Mostra la finestra in primo piano, anche se era nascosta nella tray.</summary>
         public void ShowAndActivate()
         {
             if (!IsVisible) Show();
             if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
             ShowInTaskbar = true;
             Activate();
-            // Porta davvero in primo piano anche se un'altra app ha il focus
             Topmost = true;
             Topmost = false;
             Focus();
@@ -219,10 +203,6 @@ namespace DeepLocal
                 }
             }
         }
-
-        // ============================================================
-        //  Modelli
-        // ============================================================
 
         private async Task RefreshModelsAsync(bool quiet = false)
         {
@@ -285,7 +265,17 @@ namespace DeepLocal
                 });
             }
 
-            // Scelta del modello: quello salvato, poi TranslateGemma, poi il primo locale, poi il primo cloud
+            bool has4b = items.Any(i => i.Name.StartsWith("translategemma:4b", StringComparison.OrdinalIgnoreCase));
+            if (!has4b && _vramBytes is long smallVram && smallVram < ModelFit.SuggestSmallerBelowBytes &&
+                !_toDownload.Any(d => d.Name.StartsWith("translategemma:4b", StringComparison.OrdinalIgnoreCase)))
+            {
+                _toDownload.Add(new ModelItem("translategemma:4b")
+                {
+                    Family = "gemma3",
+                    DownloadSize = "TranslateGemma 4B · 3.3 GB",
+                });
+            }
+
             var all = _installed.Concat(_cloud).ToList();
             var wanted = all.FirstOrDefault(i => string.Equals(i.Name, _settings.Model, StringComparison.OrdinalIgnoreCase));
             var pick = wanted
@@ -308,6 +298,20 @@ namespace DeepLocal
             {
                 if (_errorKind == ErrorKind.OpenModels) HideError();
                 if (!quiet) SetStatus(Loc.T("StatusReady"));
+            }
+
+            if (pick != null && !_settings.ModelPinned && !ModelFit.Fits(pick.IsCloud, pick.Size, _vramBytes))
+            {
+                var alt = ModelFit.SmallerThatFits(pick, _installed, _vramBytes);
+                if (alt != null)
+                {
+                    SelectModel(alt, save: false);
+                    if (!quiet) SetStatus(Loc.F("GpuTooSmallFmt", pick.Name, ModelFit.FormatVramGb(_vramBytes), alt.Name));
+                }
+                else if (!quiet)
+                {
+                    SetStatus(Loc.F("GpuRecommendFmt", pick.Name, ModelFit.FormatVramGb(_vramBytes)));
+                }
             }
 
             UpdateModelSections();
@@ -351,6 +355,7 @@ namespace DeepLocal
             if ((sender as FrameworkElement)?.Tag is not ModelItem item) return;
             ModelToggle.IsChecked = false;
             if (ReferenceEquals(item, _current)) return;
+            _settings.ModelPinned = true; // scelta esplicita: non la cambio più in base alla VRAM
             SelectModel(item, save: true);
             _detectedFor = null; // il rilevamento dipende dal modello
             if (_errorKind == ErrorKind.OpenModels) HideError();
@@ -377,7 +382,6 @@ namespace DeepLocal
             item.ProgressText = Loc.T("DownloadPreparing");
             SetStatus(Loc.T("DownloadPreparing"));
 
-            // Ollama scarica per strati: la percentuale è la somma di tutti gli strati visti finora
             var layers = new Dictionary<string, (long Total, long Done)>();
             bool ok = false;
             try
@@ -432,10 +436,6 @@ namespace DeepLocal
                 cts.Cancel();
         }
 
-        // ============================================================
-        //  Lingue
-        // ============================================================
-
         private Language SelectedSource => (SourceLang.SelectedItem as LangOption)?.Lang ?? Languages.Auto;
         private Language SelectedTarget => (TargetLang.SelectedItem as LangOption)?.Lang ?? Languages.ByCode("en")!;
 
@@ -489,7 +489,6 @@ namespace DeepLocal
             if (!src.IsAuto)
             {
                 _lastExplicitSource = src;
-                // Stessa lingua di arrivo: si scambiano, come fa DeepL
                 if (src.Code == SelectedTarget.Code && e.RemovedItems.Count > 0 && e.RemovedItems[0] is LangOption old)
                     SelectLang(TargetLang, old.Lang.IsAuto ? (_detected ?? AlternativeTarget(src)) : old.Lang);
             }
@@ -527,7 +526,6 @@ namespace DeepLocal
                 await TranslateAsync();
         }
 
-        /// <summary>Lingua di arrivo alternativa quando il testo è già nella lingua di arrivo.</summary>
         private Language AlternativeTarget(Language source)
         {
             var ui = Languages.ByCode(Loc.I.Lang)!;
@@ -555,7 +553,6 @@ namespace DeepLocal
             _detectedFor = null;
             UpdateAutoLabel();
 
-            // Si scambiano anche i testi: la traduzione diventa il nuovo testo di partenza
             var translated = TargetBox.Text;
             if (!string.IsNullOrWhiteSpace(translated))
             {
@@ -569,10 +566,6 @@ namespace DeepLocal
             HideError();
             SetStatus(Loc.T("StatusSwapped"));
         }
-
-        // ============================================================
-        //  Testo e traduzione
-        // ============================================================
 
         private void SetSourceText(string text)
         {
@@ -727,7 +720,6 @@ namespace DeepLocal
 
             try
             {
-                // 1. Lingua di partenza (rilevata se "Rileva lingua"; riusata mentre si continua a scrivere)
                 Language? source = SelectedSource;
                 if (source.IsAuto)
                 {
@@ -753,7 +745,6 @@ namespace DeepLocal
                 }
                 ApplyFlow();
 
-                // 3. Traduzione in streaming
                 SetStatus(Loc.F("StatusTranslatingFmt", target.DisplayName(Loc.I.Lang), model.Name));
                 var prompt = Translator.BuildPrompt(model.Name, text, source, target);
                 var sb = new StringBuilder();
@@ -780,7 +771,6 @@ namespace DeepLocal
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
-                // Interrotta dall'utente o sostituita da una traduzione più recente
             }
             catch (OllamaException ex) when (ex.IsModelMissing)
             {
@@ -817,7 +807,6 @@ namespace DeepLocal
             }
         }
 
-        /// <summary>Mentre si scrive, la lingua rilevata sull'inizio del testo resta valida.</summary>
         private bool CanReuseDetection(string text)
         {
             if (_detectedFor == null || _detected == null) return false;
@@ -826,10 +815,6 @@ namespace DeepLocal
             return _detectedFor.Length >= 24 && text.Length >= 24 &&
                    string.CompareOrdinal(_detectedFor, 0, text, 0, Math.Min(prefix, Math.Min(_detectedFor.Length, text.Length))) == 0;
         }
-
-        // ============================================================
-        //  Stato, errori, attività
-        // ============================================================
 
         private void SetStatus(string text) => StatusText.Text = text;
 
@@ -922,10 +907,6 @@ namespace DeepLocal
             if (BusyLine.Visibility == Visibility.Visible) StartBusyAnimation();
         }
 
-        // ============================================================
-        //  Impostazioni
-        // ============================================================
-
         private void SettingsPopup_Opened(object sender, EventArgs e)
         {
             _loadingSettingsUi = true;
@@ -984,14 +965,12 @@ namespace DeepLocal
             }
         }
 
-        /// <summary>Messaggio all'avvio se Alt+T è occupato da un altro programma.</summary>
         public void ReportHotkeyIfFailed()
         {
             if (!_hotkeyOk) SetStatus(Loc.T("ErrHotkey"));
         }
     }
 
-    /// <summary>Voce dei menu lingua: il testo mostrato cambia con la lingua dell'interfaccia e con il rilevamento.</summary>
     public sealed class LangOption : INotifyPropertyChanged
     {
         public LangOption(Language lang) { Lang = lang; }

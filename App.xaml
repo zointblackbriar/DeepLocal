@@ -1,13 +1,11 @@
 <Application x:Class="DeepLocal.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             ShutdownMode="OnExplicitShutdown">
+             ShutdownMode="OnLastWindowClose">
   <Application.Resources>
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries>
-        <!-- [0] colori del tema: sostituito al volo da ThemeManager (Light/Dark) -->
         <ResourceDictionary Source="Themes/Light.xaml"/>
-        <!-- [1] stili dei controlli, usano i colori con DynamicResource -->
         <ResourceDictionary Source="Themes/Controls.xaml"/>
       </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>

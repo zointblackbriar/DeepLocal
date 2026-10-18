@@ -4,7 +4,6 @@ namespace DeepLocal.Services
 {
     public enum ModelGroup { Installed, Cloud, ToDownload }
 
-    /// <summary>Una riga del menu modelli: installato, cloud o da scaricare (con avanzamento).</summary>
     public sealed class ModelItem : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -19,7 +18,6 @@ namespace DeepLocal.Services
         public bool CanThink { get; init; }
         public bool IsRecommended { get; init; }
 
-        /// <summary>Dimensione nota del download quando il modello non è ancora installato.</summary>
         public string DownloadSize { get; init; } = "";
 
         private bool _isInstalled;
@@ -39,7 +37,6 @@ namespace DeepLocal.Services
 
         public ModelGroup Group => !IsInstalled ? ModelGroup.ToDownload : IsCloud ? ModelGroup.Cloud : ModelGroup.Installed;
 
-        /// <summary>Riga secondaria: "8.1 GB · gemma3 · 12.2B", "Cloud", oppure l'avanzamento del download.</summary>
         public string Detail
         {
             get

@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 
 namespace DeepLocal.Services
 {
-    /// <summary>Prompt, rilevamento della lingua e pulizia dell'output.</summary>
     public static class Translator
     {
         public static bool IsTranslateGemma(string model) =>
@@ -41,10 +40,6 @@ namespace DeepLocal.Services
                 $"Text:\n{text}";
         }
 
-        /// <summary>
-        /// Rileva la lingua: prima dall'alfabeto (immediato e sicuro), poi chiedendo al modello per le lingue latine.
-        /// Restituisce null se non riconosciuta; in quel caso si traduce senza indicare la lingua di partenza.
-        /// </summary>
         public static async Task<Language?> DetectAsync(OllamaClient ollama, string model, bool canThink, string text, CancellationToken ct)
         {
             var byScript = DetectByScript(text);
@@ -64,7 +59,6 @@ namespace DeepLocal.Services
             return Languages.ByName(firstLine);
         }
 
-        /// <summary>Conta i caratteri per alfabeto sull'intero testo, non solo il primo.</summary>
         public static Language? DetectByScript(string text)
         {
             int latin = 0, cyr = 0, hebrew = 0, arabic = 0, kana = 0, hangul = 0, han = 0, greek = 0, thai = 0, deva = 0;
@@ -119,13 +113,11 @@ namespace DeepLocal.Services
 
         public static string StripThinking(string text) => ThinkBlock.Replace(text, "");
 
-        /// <summary>Toglie virgolette, etichette e "END" che alcuni modelli aggiungono.</summary>
         public static string CleanOutput(string text, string source)
         {
             if (string.IsNullOrWhiteSpace(text)) return string.Empty;
             var t = StripThinking(text).Trim();
 
-            // Blocco di codice ``` ... ``` attorno a tutta la risposta
             if (t.StartsWith("```") && t.EndsWith("```") && t.Length > 6)
             {
                 t = t[3..^3];
@@ -134,7 +126,6 @@ namespace DeepLocal.Services
                 t = t.Trim();
             }
 
-            // Virgolette attorno a tutto, solo se il testo originale non le aveva
             var src = source.Trim();
             foreach (var (open, close) in new[] { ("\"", "\""), ("“", "”"), ("«", "»"), ("'", "'") })
             {

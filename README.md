@@ -108,7 +108,7 @@ Any other model installed in Ollama appears in the same menu (gemma3, aya-expans
 | Click on the tray icon | Show the window |
 | Right click on the tray icon | Open, translate clipboard, hide, exit |
 
-Closing or minimizing the window keeps DeepLocal in the tray, ready for Alt+T.
+Minimizing the window (or starting DeepLocal with Windows) keeps it in the tray, ready for Alt+T; closing the window with X quits the app.
 
 # 🧑‍💻 Build from source
 

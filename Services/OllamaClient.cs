@@ -30,7 +30,6 @@ namespace DeepLocal.Services
 
     public readonly record struct GenChunk(string Response, bool IsThinking);
 
-    /// <summary>Errore di Ollama con il messaggio originale del server (es. "model not found").</summary>
     public sealed class OllamaException : Exception
     {
         public int StatusCode { get; }
@@ -69,7 +68,6 @@ namespace DeepLocal.Services
             }
         }
 
-        /// <summary>Modelli installati, con le capacità lette da /api/show (per escludere gli embedding).</summary>
         public async Task<List<OllamaModel>> ListModelsAsync(CancellationToken ct = default)
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -120,7 +118,6 @@ namespace DeepLocal.Services
             return Array.Empty<string>();
         }
 
-        /// <summary>Scarica un modello (ollama pull). Se annullato, Ollama riprende dal punto raggiunto.</summary>
         public async IAsyncEnumerable<PullProgress> PullAsync(string model, [EnumeratorCancellation] CancellationToken ct = default)
         {
             await foreach (var line in PostStreamAsync("/api/pull", new { model, stream = true }, ct))
@@ -136,7 +133,6 @@ namespace DeepLocal.Services
             }
         }
 
-        /// <summary>Generazione in streaming: restituisce i pezzi di testo man mano che arrivano.</summary>
         public async IAsyncEnumerable<GenChunk> GenerateAsync(
             string model, string prompt, bool canThink, [EnumeratorCancellation] CancellationToken ct = default)
         {
@@ -155,7 +151,6 @@ namespace DeepLocal.Services
             }
         }
 
-        /// <summary>Generazione breve senza streaming (rilevamento della lingua).</summary>
         public async Task<string> GenerateOnceAsync(string model, string prompt, bool canThink, int maxTokens, CancellationToken ct)
         {
             var payload = BuildGeneratePayload(model, prompt, canThink, stream: false, maxTokens: maxTokens);
@@ -180,8 +175,6 @@ namespace DeepLocal.Services
                 ["options"] = options,
             };
 
-            // I modelli che "ragionano" (deepseek-r1, qwen3, gpt-oss) per tradurre non ne hanno bisogno:
-            // spento dove si può, al minimo su gpt-oss che non lo permette.
             if (canThink)
                 payload["think"] = model.StartsWith("gpt-oss", StringComparison.OrdinalIgnoreCase) ? "low" : false;
 
@@ -222,7 +215,6 @@ namespace DeepLocal.Services
         private static StringContent JsonContent(object payload) =>
             new(JsonSerializer.Serialize(payload, Json), Encoding.UTF8, "application/json");
 
-        /// <summary>Percorso dell'app desktop di Ollama, se installata nel percorso standard.</summary>
         public static string? FindOllamaApp()
         {
             var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);

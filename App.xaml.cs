@@ -11,7 +11,6 @@ namespace DeepLocal
 {
     public partial class App : System.Windows.Application
     {
-        public static bool AllowClose { get; private set; }
         public static App? Instance { get; private set; }
 
         private const string MutexName = "DeepLocal_OfflineTranslator_SingleInstance";
@@ -50,7 +49,6 @@ namespace DeepLocal
             double waLeft = wa.Left / scale, waTop = wa.Top / scale;
             double waWidth = wa.Width / scale, waHeight = wa.Height / scale;
 
-            // Su un portatile al 150% la finestra da 1100x660 non ci starebbe: si adatta all'area disponibile
             double maxW = Math.Max(w.MinWidth, waWidth - 2 * marginDip);
             double maxH = Math.Max(w.MinHeight, waHeight - 2 * marginDip);
             if (w.Width > maxW) w.Width = maxW;
@@ -84,7 +82,6 @@ namespace DeepLocal
             _singleInstanceMutex = new Mutex(true, MutexName, out bool createdNew);
             if (!createdNew)
             {
-                // Già aperto: si chiede all'istanza esistente di mostrarsi, e si esce
                 try
                 {
                     using var ev = EventWaitHandle.OpenExisting(ShowEventName);
@@ -107,11 +104,9 @@ namespace DeepLocal
             PlaceWindowBottomRight(win);
             win.SourceInitialized += (_, _) => PlaceWindowBottomRight(win);
 
-            // Con "Avvia con Windows" parte nella tray, senza finestra
             bool minimized = e.Args.Any(a => a.Equals("--minimized", StringComparison.OrdinalIgnoreCase));
             if (minimized)
             {
-                // Crea l'handle (serve per Alt+T) senza mostrare la finestra
                 new WindowInteropHelper(win).EnsureHandle();
             }
             else
@@ -155,7 +150,6 @@ namespace DeepLocal
             _miHide = new WF.ToolStripMenuItem("", null, (_, _) => HideMainWindow());
             _miExit = new WF.ToolStripMenuItem("", null, (_, _) =>
             {
-                AllowClose = true;
                 Shutdown();
             });
             menu.Items.Add(_miOpen);
@@ -168,7 +162,6 @@ namespace DeepLocal
 
             _tray.MouseClick += (_, a) =>
             {
-                // Clic sinistro: mostra e porta in primo piano (si nasconde con la X o dal menu)
                 if (a.Button == WF.MouseButtons.Left) ShowMainWindow();
             };
 
@@ -217,8 +210,6 @@ namespace DeepLocal
 
         protected override void OnExit(ExitEventArgs e)
         {
-            AllowClose = true;
-
             if (_tray != null)
             {
                 try { _tray.Visible = false; _tray.Dispose(); } catch { }

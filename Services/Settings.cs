@@ -7,20 +7,18 @@ using Microsoft.Win32;
 
 namespace DeepLocal.Services
 {
-    /// <summary>Preferenze utente in %APPDATA%\DeepLocal\settings.json.</summary>
     public sealed class Settings
     {
         public const string DefaultModel = "translategemma:12b";
         private const string RegistryKey = @"Software\DeepLocal";
 
         public string Model { get; set; } = DefaultModel;
+        public bool ModelPinned { get; set; }
         public string SourceLang { get; set; } = Language.AutoCode;
         public string TargetLang { get; set; } = "";
-        /// <summary>Lingua dell'interfaccia scelta a mano nelle impostazioni ("" = decide l'installer).</summary>
         public string UiLanguage { get; set; } = "";
         public bool AutoTranslate { get; set; } = true;
 
-        /// <summary>Lingua effettiva dell'interfaccia: scelta utente, poi installer, poi Windows.</summary>
         [JsonIgnore] public string Ui { get; set; } = "en";
 
         private static string FilePath =>
@@ -65,14 +63,9 @@ namespace DeepLocal.Services
             }
             catch
             {
-                // Le preferenze non sono critiche: se il disco rifiuta, si riparte dai default.
             }
         }
 
-        /// <summary>
-        /// Lingua scelta dall'installer (ITA o EN): setup.ini accanto all'exe ("UiLanguage=it"),
-        /// oppure HKCU\Software\DeepLocal per installazioni fatte a mano.
-        /// </summary>
         private static string? InstallerUiLanguage()
         {
             try
@@ -98,9 +91,6 @@ namespace DeepLocal.Services
             catch { return null; }
         }
 
-        // ===== Avvio con Windows =====
-        // L'installer crea un collegamento in Esecuzione automatica (come la v1.0);
-        // dall'app si usa HKCU\...\Run. Si riconoscono entrambi e spegnendo si tolgono entrambi.
         private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
         private const string RunValue = "DeepLocal";
 

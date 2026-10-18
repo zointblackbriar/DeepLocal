@@ -4,7 +4,6 @@ using System.Linq;
 
 namespace DeepLocal.Services
 {
-    /// <summary>Una lingua traducibile: codice, nome inglese (usato nei prompt), nome italiano, direzione.</summary>
     public sealed record Language(string Code, string English, string Italian, bool IsRtl = false)
     {
         public const string AutoCode = "auto";
@@ -18,7 +17,6 @@ namespace DeepLocal.Services
     {
         public static readonly Language Auto = new(Language.AutoCode, "Detect language", "Rileva lingua");
 
-        // Sottoinsieme delle 55 lingue di TranslateGemma, le stesse che offre DeepL.
         public static readonly IReadOnlyList<Language> All = new List<Language>
         {
             new("ar", "Arabic", "Arabo", IsRtl: true),
@@ -66,7 +64,6 @@ namespace DeepLocal.Services
             return All.FirstOrDefault(l => string.Equals(l.Code, code, StringComparison.OrdinalIgnoreCase));
         }
 
-        /// <summary>Riconosce un nome di lingua in inglese o italiano, tollerando punteggiatura e varianti.</summary>
         public static Language? ByName(string? raw)
         {
             if (string.IsNullOrWhiteSpace(raw)) return null;

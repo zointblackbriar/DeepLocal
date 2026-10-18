@@ -6,7 +6,6 @@ using Microsoft.Win32;
 
 namespace DeepLocal.Services
 {
-    /// <summary>Tema chiaro/scuro che segue Windows, cambiato al volo quando l'utente lo cambia.</summary>
     public static class ThemeManager
     {
         public static bool IsDark { get; private set; }
@@ -53,7 +52,6 @@ namespace DeepLocal.Services
             ThemeChanged?.Invoke();
         }
 
-        // ===== Barra del titolo di Windows 11 dello stesso blu notte della testata =====
         [DllImport("dwmapi.dll")]
         private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
 
@@ -76,7 +74,6 @@ namespace DeepLocal.Services
             }
             catch
             {
-                // Windows 10: gli attributi non esistono, la barra resta quella di sistema.
             }
         }
     }

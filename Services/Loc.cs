@@ -3,10 +3,6 @@ using System.ComponentModel;
 
 namespace DeepLocal.Services
 {
-    /// <summary>
-    /// Testi dell'interfaccia in italiano e inglese. In XAML:
-    /// Text="{Binding [Chiave], Source={x:Static s:Loc.I}}". Cambiando lingua i binding si aggiornano da soli.
-    /// </summary>
     public sealed class Loc : INotifyPropertyChanged
     {
         public static Loc I { get; } = new();
@@ -100,6 +96,10 @@ namespace DeepLocal.Services
             ["RefreshModels"] = ("Aggiorna elenco", "Refresh list"),
             ["FallbackModelFmt"] = ("{0} non è installato: uso {1}", "{0} is not installed: using {1}"),
             ["NoModelsYet"] = ("Nessun modello", "No model"),
+
+            // Modello e GPU
+            ["GpuTooSmallFmt"] = ("{0} non entra nella GPU ({1} GB di VRAM): uso {2}, più veloce", "{0} does not fit the GPU ({1} GB VRAM): using {2} for speed"),
+            ["GpuRecommendFmt"] = ("{0} non entra nella GPU ({1} GB di VRAM): scarica un modello più piccolo per andare più veloce", "{0} does not fit the GPU ({1} GB VRAM): download a smaller model to go faster"),
 
             // Impostazioni
             ["Settings"] = ("Impostazioni", "Settings"),
